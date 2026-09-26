@@ -58,11 +58,13 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Audit failed unexpectedly.";
 
-    if (message.includes("OPENAI_API_KEY")) {
-      return NextResponse.json(
-        { error: "Server is missing OPENAI_API_KEY." },
-        { status: 500 },
-      );
+    if (
+      message.includes("AI_API_KEY") ||
+      message.includes("OPENAI_API_KEY") ||
+      message.includes("AI_PROVIDER") ||
+      message.includes("CLOUDFLARE_ACCOUNT_ID")
+    ) {
+      return NextResponse.json({ error: message }, { status: 500 });
     }
 
     console.error("Audit failed:", error);

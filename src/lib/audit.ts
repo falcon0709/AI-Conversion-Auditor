@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { completeChatJson, extractJsonText } from "@/lib/ai/complete";
 import {
   auditResultSchema,
   ISSUE_CATEGORIES,
@@ -19,7 +19,8 @@ Rules:
 - For copy problems (headline, CTA, pricing, FAQ, trust), include improvedCopy: concrete rewrite the business can paste.
 - For technical/UX issues without copy (images, mobile viewport, SEO meta), omit improvedCopy or set null.
 - Write for non-technical small business owners. No jargon walls.
-- summary: one punchy sentence like "Your website is losing customers in these N places."`;
+- summary: one punchy sentence like "Your website is losing customers in these N places."
+- Respond with valid JSON only. No markdown.`;
 
 function buildUserPrompt(signals: PageSignals): string {
   return `Audit this homepage for conversion leaks.
@@ -61,38 +62,24 @@ Respond with JSON only matching:
 }
 
 export async function runAudit(signals: PageSignals): Promise<AuditResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured.");
-  }
-
-  const client = new OpenAI({ apiKey });
-
-  const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.4,
-    response_format: { type: "json_object" },
-    messages: [
+  const content = await completeChatJson(
+    [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: buildUserPrompt(signals) },
     ],
-  });
-
-  const content = completion.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("OpenAI returned an empty response.");
-  }
+    0.4,
+  );
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(extractJsonText(content));
   } catch {
-    throw new Error("OpenAI returned invalid JSON.");
+    throw new Error("AI provider returned invalid JSON.");
   }
 
   const result = auditResultSchema.safeParse(parsed);
   if (!result.success) {
-    throw new Error("OpenAI response failed validation.");
+    throw new Error("AI response failed validation.");
   }
 
   return result.data;
