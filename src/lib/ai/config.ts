@@ -6,6 +6,7 @@ export const AI_PROVIDERS = [
   "gemini",
   "huggingface",
   "cloudflare",
+  "ollama",
 ] as const;
 
 export type AiProvider = (typeof AI_PROVIDERS)[number];
@@ -26,6 +27,7 @@ const DEFAULT_MODELS: Record<AiProvider, string> = {
   gemini: "gemini-2.0-flash",
   huggingface: "meta-llama/Meta-Llama-3-8B-Instruct",
   cloudflare: "@cf/meta/llama-3.1-8b-instruct",
+  ollama: "llama3.2",
 };
 
 const DEFAULT_BASE_URLS: Partial<Record<AiProvider, string>> = {
@@ -33,6 +35,7 @@ const DEFAULT_BASE_URLS: Partial<Record<AiProvider, string>> = {
   groq: "https://api.groq.com/openai/v1",
   mistral: "https://api.mistral.ai/v1",
   huggingface: "https://router.huggingface.co/v1",
+  ollama: "http://127.0.0.1:11434/v1",
 };
 
 function isAiProvider(value: string): value is AiProvider {
@@ -57,7 +60,7 @@ export function getAiConfig(): AiConfig {
   const apiKey =
     process.env.AI_API_KEY?.trim() ||
     process.env.OPENAI_API_KEY?.trim() ||
-    "";
+    (providerRaw === "ollama" ? "ollama" : "");
 
   if (!apiKey) {
     throw new Error(

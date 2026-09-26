@@ -6,6 +6,9 @@ export type ChatMessage = {
   content: string;
 };
 
+/** Keep completion size bounded (helps OpenRouter low-credit keys). */
+const MAX_OUTPUT_TOKENS = 2000;
+
 function openAiCompatibleBaseUrl(config: AiConfig): string | undefined {
   if (config.provider === "cloudflare") {
     return `https://api.cloudflare.com/client/v4/accounts/${config.cloudflareAccountId}/ai/v1`;
@@ -42,20 +45,39 @@ async function completeOpenAiCompatible(
         : undefined,
   });
 
-  const completion = await client.chat.completions.create({
-    model: config.model,
-    temperature,
-    ...(supportsJsonObjectMode(config.provider)
-      ? { response_format: { type: "json_object" as const } }
-      : {}),
-    messages,
-  });
+  try {
+    const completion = await client.chat.completions.create({
+      model: config.model,
+      temperature,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      ...(supportsJsonObjectMode(config.provider)
+        ? { response_format: { type: "json_object" as const } }
+        : {}),
+      messages,
+    });
 
-  const content = completion.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("AI provider returned an empty response.");
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("AI provider returned an empty response.");
+    }
+    return content;
+  } catch (error) {
+    if (config.provider === "ollama") {
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        message.includes("ECONNREFUSED") ||
+        message.includes("fetch failed") ||
+        message.includes("Connection error")
+      ) {
+        throw new Error(
+          "Could not reach Ollama at " +
+            (config.baseUrl ?? "http://127.0.0.1:11434/v1") +
+            ". Start Ollama and pull your model (e.g. `ollama pull llama3.2`).",
+        );
+      }
+    }
+    throw error;
   }
-  return content;
 }
 
 async function completeGemini(
@@ -88,6 +110,7 @@ async function completeGemini(
       generationConfig: {
         temperature,
         responseMimeType: "application/json",
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
       },
     }),
   });
