@@ -28,9 +28,6 @@ export default function RootLayout({
       <body className={`${display.variable} ${body.variable}`}>
         <div className="shell">
           {children}
-          <footer className="site-footer">
-            Leakline · Free conversion audits for small businesses
-          </footer>
         </div>
       </body>
     </html>
