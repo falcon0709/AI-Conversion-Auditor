@@ -45,13 +45,7 @@ export function AuditorApp() {
         <div className="hero__inner">
           <p className="brand">Leakline</p>
           <h1 className="hero__headline">
-            Your website is losing customers.
-            <span> We show you where.</span>
           </h1>
-          <p className="hero__support">
-            Paste any homepage URL. Get a free AI conversion audit with
-            rewritten headlines, CTAs, and trust copy you can use today.
-          </p>
           <UrlForm onSubmit={handleAudit} loading={loading} />
           {error ? <p className="form-error" role="alert">{error}</p> : null}
           {loading ? (
